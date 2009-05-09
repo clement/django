@@ -136,6 +136,12 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'icontains': "LIKE %s ESCAPE '\\'",
         'regex': 'REGEXP %s',
         'iregex': "REGEXP '(?i)' || %s",
+        'notexact': '!= %s',
+        'notiexact': "NOT LIKE %s ESCAPE '\\'",
+        'notcontains': "NOT LIKE %s ESCAPE '\\'",
+        'noticontains': "NOT LIKE %s ESCAPE '\\'",
+        'notregex': 'NOT REGEXP %s',
+        'notiregex': "NOT REGEXP '(?i)' || %s",
         'gt': '> %s',
         'gte': '>= %s',
         'lt': '< %s',
@@ -144,6 +150,10 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'endswith': "LIKE %s ESCAPE '\\'",
         'istartswith': "LIKE %s ESCAPE '\\'",
         'iendswith': "LIKE %s ESCAPE '\\'",
+        'notstartswith': "NOT LIKE %s ESCAPE '\\'",
+        'notendswith': "NOT LIKE %s ESCAPE '\\'",
+        'notistartswith': "NOT LIKE %s ESCAPE '\\'",
+        'notiendswith': "NOT LIKE %s ESCAPE '\\'",
     }
 
     def __init__(self, *args, **kwargs):
