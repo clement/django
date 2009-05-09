@@ -50,6 +50,12 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'icontains': 'LIKE UPPER(%s)',
         'regex': '~ %s',
         'iregex': '~* %s',
+        'notexact': '!= %s',
+        'notiexact': '!= UPPER(%s)',
+        'notcontains': 'NOT LIKE %s',
+        'noticontains': 'NOT LIKE UPPER(%s)',
+        'notregex': '!~ %s',
+        'notiregex': '!~* %s',
         'gt': '> %s',
         'gte': '>= %s',
         'lt': '< %s',
@@ -58,6 +64,10 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'endswith': 'LIKE %s',
         'istartswith': 'LIKE UPPER(%s)',
         'iendswith': 'LIKE UPPER(%s)',
+        'notstartswith': 'NOT LIKE %s',
+        'notendswith': 'NOT LIKE %s',
+        'notistartswith': 'NOT LIKE UPPER(%s)',
+        'notiendswith': 'NOT LIKE UPPER(%s)',
     }
 
     def __init__(self, *args, **kwargs):
