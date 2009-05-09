@@ -8,6 +8,7 @@ from django.db import connection
 from django.db.models.fields import Field
 from django.db.models.query_utils import QueryWrapper
 from datastructures import EmptyResultSet, FullResultSet
+from constants import NEGATED_QUERY_TERMS
 
 # Connection types
 AND = 'AND'
@@ -78,7 +79,7 @@ class WhereNode(tree.Node):
         super(WhereNode, self).add((obj, lookup_type, annotation, params),
                 connector)
 
-    def as_sql(self, qn=None):
+    def as_sql(self, qn=None, force_negation=None):
         """
         Returns the SQL version of the where clause and the value to be
         substituted in. Returns None, None if this node is empty.
@@ -91,16 +92,25 @@ class WhereNode(tree.Node):
             qn = connection.ops.quote_name
         if not self.children:
             return None, []
+        # If there's just a leaf, propagate the negation to the children
+        # Otherwise, propagate to transform an OR in AND 
+        if force_negation:
+            self.negated = not self.negated
+        negate_children = self.negated and (len(self.children) == 1 or self.connector == OR)
+        if negate_children:
+            self.negated = False
+            self.connector = (self.connector == AND and OR or AND)
+        
         result = []
         result_params = []
         empty = True
         for child in self.children:
             try:
                 if hasattr(child, 'as_sql'):
-                    sql, params = child.as_sql(qn=qn)
+                    sql, params = child.as_sql(qn=qn, force_negation=negate_children)
                 else:
                     # A leaf node in the tree.
-                    sql, params = self.make_atom(child, qn)
+                    sql, params = self.make_atom(child, qn, force_negation=negate_children)
 
             except EmptyResultSet:
                 if self.connector == AND and not self.negated:
@@ -136,7 +146,7 @@ class WhereNode(tree.Node):
                 sql_string = '(%s)' % sql_string
         return sql_string, result_params
 
-    def make_atom(self, child, qn):
+    def make_atom(self, child, qn, force_negation=False):
         """
         Turn a tuple (table_alias, column_name, db_type, lookup_type,
         value_annot, params) into valid SQL.
@@ -163,31 +173,41 @@ class WhereNode(tree.Node):
         else:
             extra = ''
 
+        # Try to invert the lookup operator before sending to the backend
+        if force_negation:
+            lookup_type_backend = NEGATED_QUERY_TERMS.get(lookup_type, 'not'+lookup_type)
+        else:
+            lookup_type_backend = lookup_type
+        
         if lookup_type in connection.operators:
-            format = "%s %%s %%s" % (connection.ops.lookup_cast(lookup_type),)
+            format = "%s %%s %%s" % (connection.ops.lookup_cast(lookup_type_backend),)
             return (format % (field_sql,
-                              connection.operators[lookup_type] % cast_sql,
+                              connection.operators[lookup_type_backend] % cast_sql,
                               extra), params)
 
         if lookup_type == 'in':
+            operator = '%sIN' % (force_negation and 'NOT ' or '')
             if not value_annot:
                 raise EmptyResultSet
             if extra:
-                return ('%s IN %s' % (field_sql, extra), params)
-            return ('%s IN (%s)' % (field_sql, ', '.join(['%s'] * len(params))),
-                    params)
-        elif lookup_type in ('range', 'year'):
-            return ('%s BETWEEN %%s and %%s' % field_sql, params)
-        elif lookup_type in ('month', 'day', 'week_day'):
-            return ('%s = %%s' % connection.ops.date_extract_sql(lookup_type, field_sql),
+                return ('%s %s %s' % (field_sql, operator, extra), params)
+            return ('%s %s (%s)' % (field_sql, operator, ', '.join(['%s'] * len(params))),
                     params)
         elif lookup_type == 'isnull':
             return ('%s IS %sNULL' % (field_sql,
-                (not value_annot and 'NOT ' or '')), ())
+                (((not value_annot) ^ force_negation) and 'NOT ' or '')), ())
+        elif lookup_type in ('month', 'day', 'week_day'):
+            return ('%s %s= %%s' % connection.ops.date_extract_sql(lookup_type, field_sql),
+                    (force_negation and '!' or ''), params)
+        
+        # Negating the full string
+        negate = force_negation and 'NOT (%s)' or '%s'
+        if lookup_type in ('range', 'year'):
+            return (negate % ('%s BETWEEN %%s and %%s' % field_sql, params))
         elif lookup_type == 'search':
-            return (connection.ops.fulltext_search_sql(field_sql), params)
+            return (negate % (connection.ops.fulltext_search_sql(field_sql), params))
         elif lookup_type in ('regex', 'iregex'):
-            return connection.ops.regex_lookup(lookup_type) % (field_sql, cast_sql), params
+            return (negate % (connection.ops.regex_lookup(lookup_type) % (field_sql, cast_sql), params))
 
         raise TypeError('Invalid lookup_type: %r' % lookup_type)
 

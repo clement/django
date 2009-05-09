@@ -6,6 +6,9 @@ QUERY_TERMS = dict([(x, None) for x in (
     'startswith', 'istartswith', 'endswith', 'iendswith', 'range', 'year',
     'month', 'day', 'week_day', 'isnull', 'search', 'regex', 'iregex',
     )])
+    
+# Other are computed by prefixing with 'not'
+NEGATED_QUERY_TERMS = {'gt':'lte','gte':'lt','lt':'gte','lte':'gt'}
 
 # Size of each "chunk" for get_iterator calls.
 # Larger values are slightly faster at the expense of more storage space.

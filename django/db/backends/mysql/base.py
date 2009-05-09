@@ -223,6 +223,12 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'icontains': 'LIKE %s',
         'regex': 'REGEXP BINARY %s',
         'iregex': 'REGEXP %s',
+        'notexact': '!= %s',
+        'notiexact': 'NOT LIKE %s',
+        'notcontains': 'NOT LIKE BINARY %s',
+        'noticontains': 'NOT LIKE %s',
+        'notregex': 'NOT REGEXP BINARY %s',
+        'notiregex': 'NOT REGEXP %s',
         'gt': '> %s',
         'gte': '>= %s',
         'lt': '< %s',
@@ -231,6 +237,10 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'endswith': 'LIKE BINARY %s',
         'istartswith': 'LIKE %s',
         'iendswith': 'LIKE %s',
+        'notstartswith': 'NOT LIKE BINARY %s',
+        'notendswith': 'NOT LIKE BINARY %s',
+        'notistartswith': 'NOT LIKE %s',
+        'notiendswith': 'NOT LIKE %s',
     }
 
     def __init__(self, *args, **kwargs):
