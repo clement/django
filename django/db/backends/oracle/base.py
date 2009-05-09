@@ -263,6 +263,10 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'iexact': '= UPPER(%s)',
         'contains': "LIKEC %s ESCAPE '\\'",
         'icontains': "LIKEC UPPER(%s) ESCAPE '\\'",
+        'notexact': '!= %s',
+        'notiexact': '!= UPPER(%s)',
+        'notcontains': "NOT LIKEC %s ESCAPE '\\'",
+        'noticontains': "NOT LIKEC UPPER(%s) ESCAPE '\\'",
         'gt': '> %s',
         'gte': '>= %s',
         'lt': '< %s',
@@ -271,6 +275,10 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'endswith': "LIKEC %s ESCAPE '\\'",
         'istartswith': "LIKEC UPPER(%s) ESCAPE '\\'",
         'iendswith': "LIKEC UPPER(%s) ESCAPE '\\'",
+        'notstartswith': "NOT LIKEC %s ESCAPE '\\'",
+        'notendswith': "NOT LIKEC %s ESCAPE '\\'",
+        'notistartswith': "NOT LIKEC UPPER(%s) ESCAPE '\\'",
+        'notiendswith': "NOT LIKEC UPPER(%s) ESCAPE '\\'",
     }
     oracle_version = None
 
