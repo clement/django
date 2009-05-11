@@ -197,17 +197,17 @@ class WhereNode(tree.Node):
             return ('%s IS %sNULL' % (field_sql,
                 (((not value_annot) ^ force_negation) and 'NOT ' or '')), ())
         elif lookup_type in ('month', 'day', 'week_day'):
-            return ('%s %s= %%s' % connection.ops.date_extract_sql(lookup_type, field_sql),
-                    (force_negation and '!' or ''), params)
+            return ('%s %s= %%s' % (connection.ops.date_extract_sql(lookup_type, field_sql),
+                    (force_negation and '!' or '')), params)
         
         # Negating the full string
         negate = force_negation and 'NOT (%s)' or '%s'
         if lookup_type in ('range', 'year'):
-            return (negate % ('%s BETWEEN %%s and %%s' % field_sql, params))
+            return (negate % ('%s BETWEEN %%s and %%s' % field_sql), params)
         elif lookup_type == 'search':
-            return (negate % (connection.ops.fulltext_search_sql(field_sql), params))
+            return (negate % connection.ops.fulltext_search_sql(field_sql), params)
         elif lookup_type in ('regex', 'iregex'):
-            return (negate % (connection.ops.regex_lookup(lookup_type) % (field_sql, cast_sql), params))
+            return (negate % (connection.ops.regex_lookup(lookup_type) % (field_sql, cast_sql)), params)
 
         raise TypeError('Invalid lookup_type: %r' % lookup_type)
 
