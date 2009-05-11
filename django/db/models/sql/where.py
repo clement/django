@@ -79,7 +79,7 @@ class WhereNode(tree.Node):
         super(WhereNode, self).add((obj, lookup_type, annotation, params),
                 connector)
 
-    def as_sql(self, qn=None, force_negation=None):
+    def as_sql(self, qn=None, force_negation=False):
         """
         Returns the SQL version of the where clause and the value to be
         substituted in. Returns None, None if this node is empty.
@@ -92,14 +92,16 @@ class WhereNode(tree.Node):
             qn = connection.ops.quote_name
         if not self.children:
             return None, []
+        # Copy the negated value, and work on a copy to not alter the
+        # Where tree with local SQL query optimization
         # If there's just a leaf, propagate the negation to the children
         # Otherwise, propagate to transform an OR in AND 
-        if force_negation:
-            self.negated = not self.negated
-        negate_children = self.negated and (len(self.children) == 1 or self.connector == OR)
+        connector = self.connector
+        negated = force_negation ^ self.negated
+        negate_children = negated and (len(self.children) == 1 or connector == OR)
         if negate_children:
-            self.negated = False
-            self.connector = (self.connector == AND and OR or AND)
+            negated = False
+            connector = (connector == AND and OR or AND)
         
         result = []
         result_params = []
@@ -113,20 +115,20 @@ class WhereNode(tree.Node):
                     sql, params = self.make_atom(child, qn, force_negation=negate_children)
 
             except EmptyResultSet:
-                if self.connector == AND and not self.negated:
+                if connector == AND and not negated:
                     # We can bail out early in this particular case (only).
                     raise
-                elif self.negated:
+                elif negated:
                     empty = False
                 continue
             except FullResultSet:
-                if self.connector == OR:
-                    if self.negated:
+                if connector == OR:
+                    if negated:
                         empty = True
                         break
                     # We match everything. No need for any constraints.
                     return '', []
-                if self.negated:
+                if negated:
                     empty = True
                 continue
 
@@ -137,10 +139,10 @@ class WhereNode(tree.Node):
         if empty:
             raise EmptyResultSet
 
-        conn = ' %s ' % self.connector
+        conn = ' %s ' % connector
         sql_string = conn.join(result)
         if sql_string:
-            if self.negated:
+            if negated:
                 sql_string = 'NOT (%s)' % sql_string
             elif len(self.children) != 1:
                 sql_string = '(%s)' % sql_string
@@ -188,7 +190,10 @@ class WhereNode(tree.Node):
         if lookup_type == 'in':
             operator = '%sIN' % (force_negation and 'NOT ' or '')
             if not value_annot:
-                raise EmptyResultSet
+                if force_negation:
+                    raise FullResultSet
+                else:
+                    raise EmptyResultSet
             if extra:
                 return ('%s %s %s' % (field_sql, operator, extra), params)
             return ('%s %s (%s)' % (field_sql, operator, ', '.join(['%s'] * len(params))),
@@ -253,8 +258,8 @@ class EverythingNode(object):
     """
     A node that matches everything.
     """
-    def as_sql(self, qn=None):
-        raise FullResultSet
+    def as_sql(self, qn=None, force_negation=False):
+        raise (force_negation and EmptyResultSet or FullResultSet)
 
     def relabel_aliases(self, change_map, node=None):
         return
@@ -263,8 +268,8 @@ class NothingNode(object):
     """
     A node that matches nothing.
     """
-    def as_sql(self, qn=None):
-        raise EmptyResultSet
+    def as_sql(self, qn=None, force_negation=False):
+        raise (force_negation and FullResultSet or EmptyResultSet)
 
     def relabel_aliases(self, change_map, node=None):
         return
