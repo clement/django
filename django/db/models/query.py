@@ -13,6 +13,7 @@ from django.db.models.fields import DateField
 from django.db.models.query_utils import Q, select_related_descend, CollectedObjects, CyclicDependency, deferred_class_factory
 from django.db.models import signals, sql
 
+from copy import deepcopy
 
 # Used to control how many objects are worked with at once in some cases (e.g.
 # when deleting objects).
@@ -40,6 +41,19 @@ class QuerySet(object):
     # PYTHON MAGIC METHODS #
     ########################
 
+    def __deepcopy__(self, memo):
+        """
+        Deep copying of a QuerySet without
+        populating the cache
+        """
+        obj_dict = deepcopy(self.__dict__, memo)
+        obj_dict['_iter'] = None
+        
+        obj = self.__class__()
+        obj.__dict__.update(obj_dict)
+        return obj
+        
+        
     def __getstate__(self):
         """
         Allows the QuerySet to be pickled.
