@@ -271,6 +271,12 @@ class Plaything(models.Model):
     def __unicode__(self):
         return self.name
 
+# Simple model for subqueries tests
+
+class SimpleSubQuery(models.Model):
+    name = models.CharField(max_length=10)
+
+
 
 __test__ = {'API_TESTS':"""
 >>> generic = NamedCategory.objects.create(name="Generic")
@@ -1143,6 +1149,21 @@ True
 >>> r.save()
 >>> Ranking.objects.all()
 [<Ranking: 3: a1>, <Ranking: 2: a2>, <Ranking: 1: a3>]
+
+Bug #11082 -- when using exclude with an "__in" lookup with a subquery,
+that subquery gets executed beforehand
+>>> subq = SimpleSubQuery.objects.all()
+>>> qs = SimpleSubQuery.objects.exclude(pk__in=subq)
+>>> _ = list(qs)
+>>> subq._result_cache is None
+True
+
+Also, that bug appears when a subquery is used in a "__in" lookup, in a Q
+object which is a left hand operand on a & or | expression
+>>> subq = SimpleSubQuery.objects.all()
+>>> q_obj = Q(pk__in=subq) & Q(name='aa')
+>>> subq._result_cache is None
+True
 """}
 
 # In Python 2.3 and the Python 2.6 beta releases, exceptions raised in __len__
