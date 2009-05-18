@@ -7,7 +7,7 @@ import pickle
 import sys
 
 from django.conf import settings
-from django.db import models
+from django.db import models, connection
 from django.db.models.query import Q, ITER_CHUNK_SIZE
 
 # Python 2.3 doesn't have sorted()
@@ -1152,18 +1152,28 @@ True
 
 Bug #11082 -- when using exclude with an "__in" lookup with a subquery,
 that subquery gets executed beforehand
+>>> old_debug = settings.DEBUG
+>>> settings.DEBUG = True
+>>> nb_queries = len(connection.queries)
 >>> subq = SimpleSubQuery.objects.all()
 >>> qs = SimpleSubQuery.objects.exclude(pk__in=subq)
 >>> _ = list(qs)
->>> subq._result_cache is None
+
+Only one query should have been issued
+>>> len(connection.queries) == (nb_queries + 1)
 True
 
 Also, that bug appears when a subquery is used in a "__in" lookup, in a Q
 object which is a left hand operand on a & or | expression
 >>> subq = SimpleSubQuery.objects.all()
 >>> q_obj = Q(pk__in=subq) & Q(name='aa')
->>> subq._result_cache is None
+
+No new query should have been issued
+>>> len(connection.queries) == (nb_queries + 1)
 True
+
+Revert changes to settings.DEBUG
+>>> settings.DEBUG = old_debug
 """}
 
 # In Python 2.3 and the Python 2.6 beta releases, exceptions raised in __len__
